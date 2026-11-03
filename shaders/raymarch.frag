@@ -2,11 +2,6 @@
 varying vec2 vUvs;
 uniform vec2 resolution;
 uniform float time;
-uniform vec3 uCameraPosition;
-uniform vec3 cameraRight;
-uniform vec3 cameraUp;
-uniform vec3 cameraForward;
-uniform float cameraFov;
 
 float inverseLerp(float v, float minValue, float maxValue) {
   return (v - minValue) / (maxValue - minValue);
@@ -79,14 +74,10 @@ vec3 RayMarch(vec3 cameraOrigin, vec3 cameraDir) {
 }
 
 void main() {
-  vec2 screenCoords = (vUvs - 0.5) * 2.0;
-  screenCoords.x *= resolution.x / resolution.y;
-  vec3 rayDir = normalize(
-    cameraForward +
-    cameraRight * screenCoords.x * cameraFov +
-    cameraUp * screenCoords.y * cameraFov
-  );
-  vec3 rayOrigin = uCameraPosition;
+  vec2 pixelCoords = (vUvs - 0.5) * resolution;
+
+  vec3 rayDir = normalize(vec3(pixelCoords * 2.0 / resolution.y, 1.0));
+  vec3 rayOrigin = vec3(0.0);
 
   vec3 colour = RayMarch(rayOrigin, rayDir);
 

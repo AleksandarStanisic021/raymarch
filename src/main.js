@@ -1,75 +1,97 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import vertexShader from "../shaders/raymarch.vert?raw";
-import fragmentShader from "../shaders/raymarch.frag?raw";
-import "./style.css";
 
-const scene = new THREE.Scene();
+class SimonDevGLSLCourse {
+  constructor() {}
 
-const displayCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 2);
-displayCamera.position.z = 1;
+  async initialize() {
+    this.threejs_ = new THREE.WebGLRenderer();
+    document.body.appendChild(this.threejs_.domElement);
 
-const camera = new THREE.PerspectiveCamera(
-  60,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  100,
-);
-camera.position.set(0, 0, 0);
+    window.addEventListener(
+      "resize",
+      () => {
+        this.onWindowResize_();
+      },
+      false,
+    );
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+    this.scene_ = new THREE.Scene();
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.target.set(0, 0, 5);
+    this.camera_ = new THREE.OrthographicCamera(0, 1, 1, 0, 0.1, 1000);
+    this.camera_.position.set(0, 0, 1);
 
-const material = new THREE.ShaderMaterial({
-  vertexShader,
-  fragmentShader,
-  uniforms: {
-    resolution: { value: new THREE.Vector2() },
-    time: { value: 0 },
-    uCameraPosition: { value: new THREE.Vector3() },
-    cameraRight: { value: new THREE.Vector3(1, 0, 0) },
-    cameraUp: { value: new THREE.Vector3(0, 1, 0) },
-    cameraForward: { value: new THREE.Vector3(0, 0, 1) },
-    cameraFov: {
-      value: Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2),
-    },
-  },
+    await this.setupProject_();
+
+    this.previousRAF_ = null;
+    this.onWindowResize_();
+    this.raf_();
+  }
+
+  async setupProject_() {
+    const vsh = await fetch("./shaders/raymarch.vert");
+    const fsh = await fetch("./shaders/raymarch.frag");
+
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        resolution: {
+          value: new THREE.Vector2(window.innerWidth, window.innerHeight),
+        },
+        time: { value: 0.0 },
+      },
+      vertexShader: await vsh.text(),
+      fragmentShader: await fsh.text(),
+    });
+
+    this.material_ = material;
+
+    const geometry = new THREE.PlaneGeometry(1, 1);
+    const plane = new THREE.Mesh(geometry, material);
+    plane.position.set(0.5, 0.5, 0);
+    this.scene_.add(plane);
+
+    this.totalTime_ = 0;
+    this.onWindowResize_();
+  }
+
+  onWindowResize_() {
+    const dpr = window.devicePixelRatio;
+    const canvas = this.threejs_.domElement;
+    canvas.style.width = window.innerWidth + "px";
+    canvas.style.height = window.innerHeight + "px";
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+
+    this.threejs_.setSize(w * dpr, h * dpr, false);
+    this.material_.uniforms.resolution.value = new THREE.Vector2(
+      window.innerWidth * dpr,
+      window.innerHeight * dpr,
+    );
+  }
+
+  raf_() {
+    requestAnimationFrame((t) => {
+      if (this.previousRAF_ === null) {
+        this.previousRAF_ = t;
+      }
+
+      this.step_(t - this.previousRAF_);
+      this.threejs_.render(this.scene_, this.camera_);
+      this.raf_();
+      this.previousRAF_ = t;
+    });
+  }
+
+  step_(timeElapsed) {
+    const timeElapsedS = timeElapsed * 0.001;
+    this.totalTime_ += timeElapsedS;
+
+    this.material_.uniforms.time.value = this.totalTime_;
+  }
+}
+
+let APP_ = null;
+
+window.addEventListener("DOMContentLoaded", async () => {
+  APP_ = new SimonDevGLSLCourse();
+  await APP_.initialize();
 });
-
-const plane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
-scene.add(plane);
-
-const clock = new THREE.Clock();
-const right = new THREE.Vector3(1, 0, 0);
-const up = new THREE.Vector3(0, 1, 0);
-
-function resize() {
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.getDrawingBufferSize(material.uniforms.resolution.value);
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-}
-
-window.addEventListener("resize", resize);
-resize();
-
-function animate() {
-  controls.update();
-  camera.updateMatrixWorld();
-  material.uniforms.uCameraPosition.value.copy(camera.position);
-  material.uniforms.cameraRight.value
-    .copy(right)
-    .applyQuaternion(camera.quaternion);
-  material.uniforms.cameraUp.value.copy(up).applyQuaternion(camera.quaternion);
-  camera.getWorldDirection(material.uniforms.cameraForward.value);
-  material.uniforms.time.value = clock.getElapsedTime();
-  renderer.render(scene, displayCamera);
-}
-
-renderer.setAnimationLoop(animate);

@@ -1,4 +1,4 @@
-import { toFloatType } from './TranspilerUtils.js';
+import { toFloatType, isBuiltinType } from './TranspilerUtils.js';
 
 export class ASTNode {
 
@@ -43,6 +43,20 @@ export class ASTNode {
 	getType() {
 
 		return this.type || null;
+
+	}
+
+	getProgram() {
+
+		let current = this;
+
+		while ( current.parent !== null ) {
+
+			current = current.parent;
+
+		}
+
+		return current.isProgram === true ? current : null;
 
 	}
 
@@ -114,6 +128,7 @@ export class Program extends ASTNode {
 		super();
 
 		this.body = body;
+		this.structTypes = new Map();
 
 		this.isProgram = true;
 
@@ -421,6 +436,24 @@ export class FunctionCall extends ASTNode {
 
 	}
 
+	getType() {
+
+		if ( isBuiltinType( this.name ) ) {
+
+			return this.name;
+
+		}
+
+		if ( this.linker.reference ) {
+
+			return this.linker.reference.getType();
+
+		}
+
+		return super.getType();
+
+	}
+
 }
 
 export class Return extends ASTNode {
@@ -579,12 +612,13 @@ export class For extends ASTNode {
 
 export class While extends ASTNode {
 
-	constructor( condition, body = [] ) {
+	constructor( condition, body = [], doWhile = false ) {
 
 		super();
 
 		this.condition = condition;
 		this.body = body;
+		this.doWhile = doWhile;
 
 		this.isWhile = true;
 
@@ -623,6 +657,35 @@ export class SwitchCase extends ASTNode {
 
 		this.isDefault = conditions === null ? true : false;
 		this.isSwitchCase = true;
+
+		this.initialize();
+
+	}
+
+}
+
+// helper class for StructDefinition
+export class StructMember {
+
+	constructor( type, name ) {
+
+		this.type = type;
+		this.name = name;
+		this.isStructMember = true;
+
+	}
+
+}
+
+export class StructDefinition extends ASTNode {
+
+	constructor( name, members = [] ) {
+
+		super();
+
+		this.name = name;
+		this.members = members;
+		this.isStructDefinition = true;
 
 		this.initialize();
 

@@ -16,7 +16,7 @@ class CSS2DObject extends Object3D {
 	/**
 	 * Constructs a new CSS2D object.
 	 *
-	 * @param {DOMElement} [element] - The DOM element.
+	 * @param {HTMLElement} [element] - The DOM element.
 	 */
 	constructor( element = document.createElement( 'div' ) ) {
 
@@ -34,7 +34,7 @@ class CSS2DObject extends Object3D {
 		/**
 		 * The DOM element which defines the appearance of this 3D object.
 		 *
-		 * @type {DOMElement}
+		 * @type {HTMLElement}
 		 * @readonly
 		 * @default true
 		 */
@@ -46,19 +46,29 @@ class CSS2DObject extends Object3D {
 		this.element.setAttribute( 'draggable', false );
 
 		/**
-		 * The 3D objects center point.
-		 * `( 0, 0 )` is the lower left, `( 1, 1 )` is the top right.
+		 * The object's anchor point, and the point around which the object rotates.
+		 * A value of `(0.5, 0.5)` corresponds to the midpoint of the object. A value
+		 * of `(0, 0)` corresponds to the upper left corner of the object.
 		 *
 		 * @type {Vector2}
 		 * @default (0.5,0.5)
 		 */
 		this.center = new Vector2( 0.5, 0.5 );
 
+		/**
+		 * The object's angle of rotation, counterclockwise, in radians.
+		 *
+		 * @type {number}
+		 * @default 0
+		 */
+		this.rotation2D = 0;
+
 		this.addEventListener( 'removed', function () {
 
 			this.traverse( function ( object ) {
 
 				if (
+					object.element &&
 					object.element instanceof object.element.ownerDocument.defaultView.Element &&
 					object.element.parentNode !== null
 				) {
@@ -81,6 +91,8 @@ class CSS2DObject extends Object3D {
 
 		this.center = source.center;
 
+		this.rotation2D = source.rotation2D;
+
 		return this;
 
 	}
@@ -96,8 +108,8 @@ const _a = new Vector3();
 const _b = new Vector3();
 
 /**
- * This renderer is a simplified version of {@link CSS3DRenderer}. The only transformation that is
- * supported is translation.
+ * This renderer is a simplified version of {@link CSS3DRenderer}. The only transformations that
+ * are supported are translation and 2D rotation.
  *
  * The renderer is very useful if you want to combine HTML based labels with 3D objects. Here too,
  * the respective DOM elements are wrapped into an instance of {@link CSS2DObject} and added to the
@@ -132,9 +144,19 @@ class CSS2DRenderer {
 		/**
 		 * The DOM where the renderer appends its child-elements.
 		 *
-		 * @type {DOMElement}
+		 * @type {HTMLElement}
 		 */
 		this.domElement = domElement;
+
+		/**
+		 * Controls whether the renderer assigns `z-index` values to CSS2DObject DOM elements.
+		 * If set to `true`, z-index values are assigned first based on the `renderOrder`
+		 * and secondly - the distance to the camera. If set to `false`, no z-index values are assigned.
+		 *
+		 * @type {boolean}
+		 * @default true
+		 */
+		this.sortObjects = true;
 
 		/**
 		 * Returns an object containing the width and height of the renderer.
@@ -165,7 +187,7 @@ class CSS2DRenderer {
 			_viewProjectionMatrix.multiplyMatrices( camera.projectionMatrix, _viewMatrix );
 
 			renderObject( scene, scene, camera );
-			zOrder( scene );
+			if ( this.sortObjects ) zOrder( scene );
 
 		};
 
@@ -224,7 +246,20 @@ class CSS2DRenderer {
 
 					object.onBeforeRender( _this, scene, camera );
 
-					element.style.transform = 'translate(' + ( - 100 * object.center.x ) + '%,' + ( - 100 * object.center.y ) + '%)' + 'translate(' + ( _vector.x * _widthHalf + _widthHalf ) + 'px,' + ( - _vector.y * _heightHalf + _heightHalf ) + 'px)';
+					// pivot point
+					const cx = 100 * object.center.x;
+					const cy = 100 * object.center.y;
+					element.style.transformOrigin = `${cx}% ${cy}%`;
+
+					// angle of rotation, counter-clockwise convention
+					const angle = - object.rotation2D;
+
+					// coordinates
+					const tx = _vector.x * _widthHalf + _widthHalf;
+					const ty = - _vector.y * _heightHalf + _heightHalf;
+
+					// transform
+					element.style.transform = `translate(${- cx}%, ${- cy}%) translate(${tx}px, ${ty}px) rotate(${angle}rad)`;
 
 					if ( element.parentNode !== domElement ) {
 
@@ -310,7 +345,7 @@ class CSS2DRenderer {
  * Constructor parameters of `CSS2DRenderer`.
  *
  * @typedef {Object} CSS2DRenderer~Parameters
- * @property {DOMElement} [element] - A DOM element where the renderer appends its child-elements.
+ * @property {HTMLElement} [element] - A DOM element where the renderer appends its child-elements.
  * If not passed in here, a new div element will be created.
  **/
 

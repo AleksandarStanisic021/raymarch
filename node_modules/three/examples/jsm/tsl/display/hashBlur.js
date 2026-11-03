@@ -1,4 +1,4 @@
-import { float, Fn, vec2, uv, sin, rand, degrees, cos, Loop, vec4, premultiplyAlpha, unpremultiplyAlpha, convertToTexture, nodeObject } from 'three/tsl';
+import { float, Fn, vec2, uv, sin, rand, TWO_PI, cos, Loop, vec4, premultiplyAlpha, unpremultiplyAlpha, convertToTexture, nodeObject } from 'three/tsl';
 
 /**
  * Applies a hash blur effect to the given texture node.
@@ -12,6 +12,7 @@ import { float, Fn, vec2, uv, sin, rand, degrees, cos, Loop, vec4, premultiplyAl
  *
  * Reference: {@link https://www.shadertoy.com/view/4lXXWn}.
  *
+ * @tsl
  * @function
  * @param {Node<vec4>} textureNode - The texture node that should be blurred.
  * @param {Node<float>} [bluramount=float(0.1)] - This node determines the amount of blur.
@@ -40,7 +41,8 @@ export const hashBlur = /*#__PURE__*/ Fn( ( [ textureNode, bluramount = float( 0
 
 	Loop( { start: 0., end: repeats, type: 'float' }, ( { i } ) => {
 
-		const q = vec2( vec2( cos( degrees( i.div( repeats ).mul( 360. ) ) ), sin( degrees( i.div( repeats ).mul( 360. ) ) ) ).mul( rand( vec2( i, targetUV.x.add( targetUV.y ) ) ).add( bluramount ) ) );
+		const angle = i.div( repeats ).mul( TWO_PI ).toConst();
+		const q = vec2( cos( angle ), sin( angle ) ).mul( rand( vec2( i, targetUV.x.add( targetUV.y ) ) ).add( bluramount ) );
 		const uv2 = vec2( targetUV.add( q.mul( bluramount ) ) );
 		blurred_image.addAssign( tap( uv2 ) );
 

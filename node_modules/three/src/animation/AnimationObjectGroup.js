@@ -1,5 +1,6 @@
 import { PropertyBinding } from './PropertyBinding.js';
 import { generateUUID } from '../math/MathUtils.js';
+import { error } from '../utils.js';
 
 /**
  * A group of objects that receives a shared animation state.
@@ -175,7 +176,7 @@ class AnimationObjectGroup {
 
 			} else if ( objects[ index ] !== knownObject ) {
 
-				console.error( 'THREE.AnimationObjectGroup: Different objects with the same UUID ' +
+				error( 'AnimationObjectGroup: Different objects with the same UUID ' +
 					'detected. Clean the caches or recreate your infrastructure when reloading scenes.' );
 
 			} // else the object is already where we want it to be
@@ -274,12 +275,24 @@ class AnimationObjectGroup {
 						lastIndex = -- nObjects,
 						lastObject = objects[ lastIndex ];
 
-					// last cached object takes this object's place
-					indicesByUUID[ lastCachedObject.uuid ] = index;
+					if ( index !== firstActiveIndex ) {
+
+						// last cached object takes this object's place
+
+						indicesByUUID[ lastCachedObject.uuid ] = index;
+
+					}
+
 					objects[ index ] = lastCachedObject;
 
-					// last object goes to the activated slot and pop
-					indicesByUUID[ lastObject.uuid ] = firstActiveIndex;
+					if ( firstActiveIndex !== lastIndex ) {
+
+						// last object goes to the activated slot and pop
+
+						indicesByUUID[ lastObject.uuid ] = firstActiveIndex;
+
+					}
+
 					objects[ firstActiveIndex ] = lastObject;
 					objects.pop();
 
@@ -304,7 +317,7 @@ class AnimationObjectGroup {
 					const lastIndex = -- nObjects,
 						lastObject = objects[ lastIndex ];
 
-					if ( lastIndex > 0 ) {
+					if ( index !== lastIndex ) {
 
 						indicesByUUID[ lastObject.uuid ] = index;
 
@@ -388,7 +401,7 @@ class AnimationObjectGroup {
 				bindings = this._bindings,
 				lastBindingsIndex = bindings.length - 1,
 				lastBindings = bindings[ lastBindingsIndex ],
-				lastBindingsPath = path[ lastBindingsIndex ];
+				lastBindingsPath = paths[ lastBindingsIndex ];
 
 			indicesByPath[ lastBindingsPath ] = index;
 

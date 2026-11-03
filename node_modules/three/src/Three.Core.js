@@ -1,8 +1,8 @@
 import { REVISION } from './constants.js';
+import { warn } from './utils.js';
 
 export { WebGLArrayRenderTarget } from './renderers/WebGLArrayRenderTarget.js';
 export { WebGL3DRenderTarget } from './renderers/WebGL3DRenderTarget.js';
-export { WebGLCubeRenderTarget } from './renderers/WebGLCubeRenderTarget.js';
 export { WebGLRenderTarget } from './renderers/WebGLRenderTarget.js';
 export { WebXRController } from './renderers/webxr/WebXRController.js';
 export { FogExp2 } from './scenes/FogExp2.js';
@@ -24,7 +24,6 @@ export { Group } from './objects/Group.js';
 export { VideoTexture } from './textures/VideoTexture.js';
 export { VideoFrameTexture } from './textures/VideoFrameTexture.js';
 export { FramebufferTexture } from './textures/FramebufferTexture.js';
-export { Source } from './textures/Source.js';
 export { DataTexture } from './textures/DataTexture.js';
 export { DataArrayTexture } from './textures/DataArrayTexture.js';
 export { Data3DTexture } from './textures/Data3DTexture.js';
@@ -33,9 +32,12 @@ export { CompressedArrayTexture } from './textures/CompressedArrayTexture.js';
 export { CompressedCubeTexture } from './textures/CompressedCubeTexture.js';
 export { CubeTexture } from './textures/CubeTexture.js';
 export { CanvasTexture } from './textures/CanvasTexture.js';
+export { HTMLTexture } from './textures/HTMLTexture.js';
 export { DepthTexture } from './textures/DepthTexture.js';
+export { CubeDepthTexture } from './textures/CubeDepthTexture.js';
 export { ExternalTexture } from './textures/ExternalTexture.js';
 export { Texture } from './textures/Texture.js';
+export { TextureSource, Source } from './textures/TextureSource.js';
 export * from './geometries/Geometries.js';
 export * from './materials/Materials.js';
 export { AnimationLoader } from './loaders/AnimationLoader.js';
@@ -61,6 +63,7 @@ export { HemisphereLight } from './lights/HemisphereLight.js';
 export { DirectionalLight } from './lights/DirectionalLight.js';
 export { AmbientLight } from './lights/AmbientLight.js';
 export { Light } from './lights/Light.js';
+export { LightShadow } from './lights/LightShadow.js';
 export { LightProbe } from './lights/LightProbe.js';
 export { StereoCamera } from './cameras/StereoCamera.js';
 export { PerspectiveCamera } from './cameras/PerspectiveCamera.js';
@@ -109,6 +112,7 @@ export { QuaternionLinearInterpolant } from './math/interpolants/QuaternionLinea
 export { LinearInterpolant } from './math/interpolants/LinearInterpolant.js';
 export { DiscreteInterpolant } from './math/interpolants/DiscreteInterpolant.js';
 export { CubicInterpolant } from './math/interpolants/CubicInterpolant.js';
+export { BezierInterpolant } from './math/interpolants/BezierInterpolant.js';
 export { Interpolant } from './math/Interpolant.js';
 export { Triangle } from './math/Triangle.js';
 export { MathUtils } from './math/MathUtils.js';
@@ -157,7 +161,7 @@ export { DataUtils } from './extras/DataUtils.js';
 export { ImageUtils } from './extras/ImageUtils.js';
 export { ShapeUtils } from './extras/ShapeUtils.js';
 export { TextureUtils } from './extras/TextureUtils.js';
-export { createCanvasElement } from './utils.js';
+export { createCanvasElement, setConsoleFunction, getConsoleFunction, log, warn, error, warnOnce } from './utils.js';
 export * from './constants.js';
 export * from './Three.Legacy.js';
 
@@ -173,7 +177,7 @@ if ( typeof window !== 'undefined' ) {
 
 	if ( window.__THREE__ ) {
 
-		console.warn( 'WARNING: Multiple instances of Three.js being imported.' );
+		warn( 'WARNING: Multiple instances of Three.js being imported.' );
 
 	} else {
 

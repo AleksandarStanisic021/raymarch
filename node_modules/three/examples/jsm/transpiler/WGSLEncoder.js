@@ -194,6 +194,23 @@ class WGSLEncoder {
 
 				code += `( ${ params } )`;
 
+			} else if ( fnName === 'array' ) {
+
+				const params = node.params.map( p => this.emitExpression( p ) );
+
+				if ( node.params.length > 0 && node.params[ 0 ].getType() ) {
+
+					const elemType = this.getWgslType( node.params[ 0 ].getType() );
+					const count = node.params.length;
+
+					code = `array<${ elemType }, ${ count }>( ${ params.join( ', ' ) } )`;
+
+				} else {
+
+					code = `array( ${ params.join( ', ' ) } )`;
+
+				}
+
 			} else if ( fnName.startsWith( 'texture' ) ) {
 
 				// Handle texture functions separately due to sampler handling
@@ -300,6 +317,10 @@ class WGSLEncoder {
 			this.varyings.push( node );
 			return ''; // Defer emission to the header
 
+		} else if ( node.isStructDefinition ) {
+
+			code = this.emitStructDefinition( node );
+
 		} else if ( node.isTernary ) {
 
 			const cond = this.emitExpression( node.cond );
@@ -331,9 +352,7 @@ class WGSLEncoder {
 
 		} else {
 
-			console.warn( 'Unknown node type in WGSL Encoder:', node );
-
-			code = `/* unknown node: ${ node.constructor.name } */`;
+			throw new Error( 'THREE.WGSLEncoder: Unknown AST node type "' + node.constructor.name + '"' );
 
 		}
 
@@ -490,6 +509,12 @@ class WGSLEncoder {
 		const cond = this.emitExpression( node.condition );
 		const body = this.emitBody( node.body );
 
+		if ( node.doWhile ) {
+
+			return `loop {\n\n${ body }\n\n${ this.tab }\tcontinuing {\n${ this.tab }\t\tbreak if ( ! ( ${ cond } ) );\n${ this.tab }\t}\n${ this.tab }}`;
+
+		}
+
 		return `while ( ${ cond } ) {\n\n${ body }\n\n${ this.tab }}`;
 
 	}
@@ -573,7 +598,15 @@ class WGSLEncoder {
 
 			}
 
-			declarations.push( `${ keyword } ${ current.name }: ${ type }${ valueStr }` );
+			let typeStr = `: ${ type }`;
+
+			if ( current.value && current.value.isFunctionCall && current.value.name === 'array' ) {
+
+				typeStr = '';
+
+			}
+
+			declarations.push( `${ keyword } ${ current.name }${ typeStr }${ valueStr }` );
 
 			current = current.next;
 
@@ -581,6 +614,29 @@ class WGSLEncoder {
 
 		// In WGSL, multiple declarations in one line are not supported, so join with semicolons.
 		return declarations.join( ';\n' + this.tab );
+
+	}
+
+	emitStructDefinition( node ) {
+
+		const { name, members } = node;
+
+		let structString = `struct ${ name } {\n`;
+
+		for ( let i = 0; i < members.length; i += 1 ) {
+
+			const member = members[ i ];
+
+			structString += `${ this.tab }\t${ member.name }: ${ this.getWgslType( member.type ) }`;
+
+			const delimiter = ( i != members.length - 1 ) ? ',\n' : '\n';
+			structString += delimiter;
+
+		}
+
+		structString += this.tab + '}';
+
+		return structString;
 
 	}
 

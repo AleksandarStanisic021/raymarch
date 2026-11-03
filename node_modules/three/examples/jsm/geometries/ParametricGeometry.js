@@ -7,10 +7,10 @@ import {
 /**
  * This class can be used to generate a geometry based on a parametric surface.
  *
- * Reference: [Mesh Generation with Python]{@link https://prideout.net/blog/old/blog/index.html@p=44.html}
+ * Reference: [Mesh Generation with Python](https://prideout.net/blog/old/blog/index.html@p=44.html)
  *
  * ```js
- * const geometry = new THREE.ParametricGeometry( klein, 25, 25 );
+ * const geometry = new ParametricGeometry( klein, 25, 25 );
  * const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
  * const klein = new THREE.Mesh( geometry, material );
  * scene.add( klein );

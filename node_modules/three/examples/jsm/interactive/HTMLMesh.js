@@ -90,8 +90,9 @@ class HTMLTexture extends CanvasTexture {
 		this.magFilter = LinearFilter;
 		this.generateMipmaps = false;
 
-		// Create an observer on the DOM, and run html2canvas update in the next loop
-		const observer = new MutationObserver( () => {
+		this.scheduleUpdate = null;
+
+		const scheduleUpdate = () => {
 
 			if ( ! this.scheduleUpdate ) {
 
@@ -100,12 +101,24 @@ class HTMLTexture extends CanvasTexture {
 
 			}
 
-		} );
+		};
+
+		// Create an observer on the DOM, and run html2canvas update in the next loop
+
+		const observer = new MutationObserver( scheduleUpdate );
+
+		// The state of form controls lives in properties (checked, value) which
+		// are not reported by MutationObserver, so listen to their events as well.
+
+		dom.addEventListener( 'input', scheduleUpdate );
+		dom.addEventListener( 'change', scheduleUpdate );
 
 		const config = { attributes: true, childList: true, subtree: true, characterData: true };
 		observer.observe( dom, config );
 
 		this.observer = observer;
+
+		this._scheduleUpdate = scheduleUpdate;
 
 	}
 
@@ -135,6 +148,9 @@ class HTMLTexture extends CanvasTexture {
 			this.observer.disconnect();
 
 		}
+
+		this.dom.removeEventListener( 'input', this._scheduleUpdate );
+		this.dom.removeEventListener( 'change', this._scheduleUpdate );
 
 		this.scheduleUpdate = clearTimeout( this.scheduleUpdate );
 
@@ -295,17 +311,12 @@ function html2canvas( element ) {
 		} else if ( element instanceof HTMLCanvasElement ) {
 
 			// Canvas element
-
 			const rect = element.getBoundingClientRect();
-
 			x = rect.left - offset.left - 0.5;
 			y = rect.top - offset.top - 0.5;
-
-		        context.save();
-			const dpr = window.devicePixelRatio;
-			context.scale( 1 / dpr, 1 / dpr );
-			context.drawImage( element, x, y );
-			context.restore();
+			const width = rect.width;
+			const height = rect.height;
+			context.drawImage( element, x, y, width, height );
 
 		} else if ( element instanceof HTMLImageElement ) {
 
@@ -521,11 +532,12 @@ function html2canvas( element ) {
 	if ( canvas === undefined ) {
 
 		canvas = document.createElement( 'canvas' );
-		canvas.width = offset.width;
-		canvas.height = offset.height;
 		canvases.set( element, canvas );
 
 	}
+
+	canvas.width = offset.width;
+	canvas.height = offset.height;
 
 	const context = canvas.getContext( '2d'/*, { alpha: false }*/ );
 

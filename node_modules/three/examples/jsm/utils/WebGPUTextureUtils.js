@@ -3,7 +3,7 @@ import {
 	NodeMaterial,
 	WebGPURenderer,
 	CanvasTexture
-} from 'three';
+} from 'three/webgpu';
 import { texture, uv } from 'three/tsl';
 
 /**
@@ -18,7 +18,7 @@ const _quadMesh = /*@__PURE__*/ new QuadMesh();
  * Returns an uncompressed version of the given compressed texture.
  *
  * This module can only be used with {@link WebGPURenderer}. When using {@link WebGLRenderer},
- * import the function from {@link WebGLTextureUtils}.
+ * import the function from {@link module:WebGLTextureUtils}.
  *
  * @async
  * @param {CompressedTexture} blitTexture - The compressed texture.

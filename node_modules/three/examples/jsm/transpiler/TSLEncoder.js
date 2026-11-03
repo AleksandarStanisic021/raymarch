@@ -188,9 +188,13 @@ class TSLEncoder {
 
 			}
 
-			// handle texture lookup function calls in separate branch
+			if ( node.name === 'array' ) {
 
-			if ( textureLookupFunctions.includes( node.name ) ) {
+				this.addImport( 'array' );
+
+				code = `array( [ ${ params.join( ', ' ) } ] )`;
+
+			} else if ( textureLookupFunctions.includes( node.name ) ) {
 
 				code = `${ params[ 0 ] }.sample( ${ params[ 1 ] } )`;
 
@@ -314,6 +318,10 @@ class TSLEncoder {
 
 			code = this.emitVarying( node );
 
+		} else if ( node.isStructDefinition ) {
+
+			code = this.emitStructDefinition( node );
+
 		} else if ( node.isTernary ) {
 
 			code = this.emitTernary( node );
@@ -364,11 +372,9 @@ class TSLEncoder {
 
 		} else {
 
-			console.warn( 'Unknown node type', node );
+			throw new Error( 'THREE.TSLEncoder: Unknown AST node type "' + node.constructor.name + '"' );
 
 		}
-
-		if ( ! code ) code = '/* unknown statement */';
 
 		return code;
 
@@ -475,6 +481,38 @@ ${ this.tab }} )`;
 
 	}
 
+	isVariableUsed( node, varName ) {
+
+		if ( ! node ) return false;
+
+		if ( node.isAccessor && node.property === varName ) return true;
+
+		for ( const key in node ) {
+
+			if ( key === 'parent' ) continue;
+
+			const child = node[ key ];
+
+			if ( Array.isArray( child ) ) {
+
+				for ( const item of child ) {
+
+					if ( this.isVariableUsed( item, varName ) ) return true;
+
+				}
+
+			} else if ( child && child.isASTNode ) {
+
+				if ( this.isVariableUsed( child, varName ) ) return true;
+
+			}
+
+		}
+
+		return false;
+
+	}
+
 	emitLoop( node ) {
 
 		const start = this.emitExpression( node.initialization.value );
@@ -500,7 +538,7 @@ ${ this.tab }} )`;
 
 		} else if ( node.afterthought.isOperator ) {
 
-			if ( node.afterthought.right.isAccessor || node.afterthought.right.isNumber ) {
+			if ( node.afterthought.right && ( node.afterthought.right.isAccessor || node.afterthought.right.isNumber ) ) {
 
 				updateParam = `, update: ${ this.emitExpression( node.afterthought.right ) }`;
 
@@ -512,7 +550,22 @@ ${ this.tab }} )`;
 
 		}
 
-		let loopStr = `Loop( { start: ${ start }, end: ${ end + nameParam + typeParam + conditionParam + updateParam } }, ( { ${ name } } ) => {\n\n`;
+		let loopParams;
+
+		if ( start === '0' && nameParam === '' && typeParam === '' && conditionParam === '' && updateParam === '' ) {
+
+			loopParams = end;
+
+		} else {
+
+			loopParams = `{ start: ${ start }, end: ${ end + nameParam + typeParam + conditionParam + updateParam } }`;
+
+		}
+
+		const isUsed = this.isVariableUsed( node.body, name );
+		const callbackParams = isUsed ? `( { ${ name } } ) =>` : '() =>';
+
+		let loopStr = `Loop( ${ loopParams }, ${ callbackParams } {\n\n`;
 
 		loopStr += this.emitBody( node.body ) + '\n\n';
 
@@ -586,10 +639,10 @@ ${ this.tab }} )`;
 		const { initialization, condition, afterthought } = node;
 
 		if ( ( initialization && initialization.isVariableDeclaration && initialization.next === null ) &&
-			( condition && condition.left.isAccessor && condition.left.property === initialization.name ) &&
+			( condition && condition.left && condition.left.isAccessor && condition.left.property === initialization.name ) &&
 			( afterthought && (
-				( afterthought.isUnary && ( initialization.name === afterthought.expression.property ) ) ||
-				( afterthought.isOperator && ( initialization.name === afterthought.left.property ) )
+				( afterthought.isUnary && afterthought.expression && ( initialization.name === afterthought.expression.property ) ) ||
+				( afterthought.isOperator && afterthought.left && ( initialization.name === afterthought.left.property ) )
 			) )
 		) {
 
@@ -628,7 +681,30 @@ ${ this.tab }} )`;
 
 	}
 
+	emitDoWhile( node ) {
+
+		const condition = this.emitExpression( node.condition );
+		const body = this.emitBody( node.body );
+
+		let loopStr = `Loop( () => {\n\n${ body }\n\n${ this.tab }\tIf( ${ condition }.not(), () => {\n\n${ this.tab }\t\tBreak();\n\n${ this.tab }\t} );\n\n`;
+
+		loopStr += this.tab + '} )';
+
+		this.imports.add( 'Loop' );
+		this.imports.add( 'If' );
+		this.imports.add( 'Break' );
+
+		return loopStr;
+
+	}
+
 	emitWhile( node ) {
+
+		if ( node.doWhile ) {
+
+			return this.emitDoWhile( node );
+
+		}
 
 		const condition = this.emitExpression( node.condition );
 
@@ -669,15 +745,31 @@ ${ this.tab }} )`;
 
 		} else {
 
-			varStr += ` = property( '${ type }' )`;
+			const program = node.getProgram();
 
-			this.addImport( 'property' );
+			if ( program.structTypes.has( type ) ) {
+
+				varStr += ` = ${ type }()`;
+
+			} else {
+
+				varStr += ` = property( '${ type }' )`;
+
+				this.addImport( 'property' );
+
+			}
 
 		}
 
 		if ( next ) {
 
 			varStr += ', ' + this.emitVariables( next, false );
+
+		}
+
+		if ( node.needsToVar ) {
+
+			varStr = varStr + '.toVar()';
 
 		}
 
@@ -693,6 +785,34 @@ ${ this.tab }} )`;
 		this.addImport( type );
 
 		return `const ${ name } = varying( ${ type }(), '${ name }' )`;
+
+	}
+
+	emitStructDefinition( node ) {
+
+		const { name, members } = node;
+
+		this.addImport( 'struct' );
+
+		let structString = `const ${ name } = struct( {\n`;
+
+		for ( let i = 0; i < members.length; i += 1 ) {
+
+			const member = members[ i ];
+
+			structString += `${this.tab}\t${member.name}: '${member.type}'`;
+
+			if ( i != members.length - 1 ) {
+
+				structString += ',\n';
+
+			}
+
+		}
+
+		structString += `\n${this.tab}}, \'${name}\' )`;
+
+		return structString;
 
 	}
 
@@ -750,6 +870,7 @@ ${ this.tab }} )`;
 			const mutableParam = new VariableDeclaration( param.type, param.name, new Accessor( param.name + '_immutable' ), null, true );
 			mutableParam.parent = param.parent; // link to the original node
 			mutableParam.linker.assignments.push( mutableParam );
+			mutableParam.needsToVar = true; // force var declaration
 
 			node.body.unshift( mutableParam );
 
@@ -791,7 +912,8 @@ ${ this.tab }}`;
 
 		if ( node.layout !== false && hasPointer === false ) {
 
-			funcStr += ', { ' + inputs.join( ', ' ) + ', return: \'' + type + '\' }';
+			const inputsStr = inputs.length > 0 ? inputs.join( ', ' ) + ', ' : '';
+			funcStr += ', { ' + inputsStr + 'return: \'' + type + '\' }';
 
 		}
 
