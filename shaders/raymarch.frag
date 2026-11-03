@@ -40,7 +40,7 @@ float sdTorus( vec3 p, vec2 t )
 // The map function calculates the overall SDF.
 // Maybe a better name would be calculateSceneSDF().
 float map(vec3 pos) {
-  float dist = sdTorus(pos - vec3(0.0, 0.0, 5.0), vec2(0.5, 0.2));
+  float dist = sdfBox(pos - vec3(0.0, 0.0, 5.0), vec3(0.5, 0.2, 0.2));
 
   return dist;
 }
@@ -63,11 +63,11 @@ vec3 RayMarch(vec3 cameraOrigin, vec3 cameraDir) {
     dist += distToScene;
 
     if (dist > MAX_DIST) {
-      return vec3(0.0);
+      return vec3(1.0, 0.0, 1.0);
     }
   }
 
-  return vec3(0.0);
+  return vec3(1.0, 0.0, 0.0);
 }
 
 void main() {
