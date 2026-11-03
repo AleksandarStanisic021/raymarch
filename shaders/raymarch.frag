@@ -40,59 +40,33 @@ float sdTorus( vec3 p, vec2 t )
 // The map function calculates the overall SDF.
 // Maybe a better name would be calculateSceneSDF().
 float map(vec3 pos) {
-  float boxDistance = sdTorus(pos - vec3(0.0, 0.0, 5.0), vec2(0.5, 0.2));
-  float groundDistance = pos.y + 0.2;
-  return min(boxDistance, groundDistance);
+  float dist = sdfBox(pos - vec3(0.0, 0.0, 5.0), vec3(0.5, 0.2, 0.2));
+
+  return dist;
 }
 
 const int NUM_STEPS = 256;
 const float MAX_DIST = 1000.0;
 
-float RayMarch(vec3 rayOrigin, vec3 rayDirection) {
+vec3 RayMarch(vec3 cameraOrigin, vec3 cameraDir) {
   float dist = 0.0;
 
   for (int i = 0; i < NUM_STEPS; ++i) {
-    float distToScene = map(rayOrigin + dist * rayDirection);
+    vec3 pos = cameraOrigin + dist * cameraDir;
+
+    float distToScene = map(pos);
+
     if (distToScene < 0.001) {
-      return dist;
+      return vec3(1.0);
     }
     dist += distToScene;
+
     if (dist > MAX_DIST) {
-      break;
+      return vec3(0.5, 0.0, 1.0);
     }
   }
 
-  return -1.0;
-}
-
-vec3 calculateNormal(vec3 pos) {
-  const float epsilon = 0.001;
-  return normalize(vec3(
-    map(pos + vec3(epsilon, 0.0, 0.0)) - map(pos - vec3(epsilon, 0.0, 0.0)),
-    map(pos + vec3(0.0, epsilon, 0.0)) - map(pos - vec3(0.0, epsilon, 0.0)),
-    map(pos + vec3(0.0, 0.0, epsilon)) - map(pos - vec3(0.0, 0.0, epsilon))
-  ));
-}
-
-float softShadow(vec3 rayOrigin, vec3 rayDirection) {
-  float result = 1.0;
-  float dist = 0.02;
-  const float softness = 8.0;
-
-  for (int i = 0; i < 64; ++i) {
-    float sceneDist = map(rayOrigin + rayDirection * dist);
-    if (sceneDist < 0.001) {
-      return 0.0;
-    }
-
-    result = min(result, softness * sceneDist / dist);
-    dist += clamp(sceneDist, 0.02, 0.5);
-    if (dist > 20.0) {
-      break;
-    }
-  }
-
-  return clamp(result, 0.0, 1.0);
+  return vec3(1.0, 1.0, 0.0);
 }
 
 void main() {
@@ -103,25 +77,7 @@ void main() {
     + cameraUp * screenCoords.y * tanHalfFov
   );
 
-  float hitDistance = RayMarch(rayOrigin, rayDir);
-  vec3 colour = vec3(0.0);
-
-  if (hitDistance >= 0.0) {
-    vec3 hitPosition = rayOrigin + rayDir * hitDistance;
-    vec3 normal = calculateNormal(hitPosition);
-    vec3 lightDirection = normalize(vec3(-0.5, 0.8, -0.6));
-    float shadow = softShadow(hitPosition + normal * 0.002, lightDirection);
-    float diffuse = max(dot(normal, lightDirection), 0.0) * shadow;
-
-    vec3 baseColour = hitPosition.y < -0.199
-      ? vec3(0.32, 0.38, 0.46)
-      : vec3(0.85, 0.55, 0.28);
-    vec3 viewDirection = normalize(rayOrigin - hitPosition);
-    vec3 halfDirection = normalize(lightDirection + viewDirection);
-    float specular = pow(max(dot(normal, halfDirection), 0.0), 48.0) * shadow;
-
-    colour = baseColour * (0.12 + 0.88 * diffuse) + vec3(0.25) * specular;
-  }
+  vec3 colour = RayMarch(rayOrigin, rayDir);
 
   gl_FragColor = vec4(pow(colour, vec3(1.0 / 2.2)), 1.0);
 }
