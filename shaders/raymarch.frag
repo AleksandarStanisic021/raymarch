@@ -2,6 +2,12 @@
 varying vec2 vUvs;
 uniform vec2 resolution;
 uniform float time;
+uniform vec3 rayOrigin;
+uniform vec3 cameraForward;
+uniform vec3 cameraRight;
+uniform vec3 cameraUp;
+uniform float aspect;
+uniform float tanHalfFov;
 
 float inverseLerp(float v, float minValue, float maxValue) {
   return (v - minValue) / (maxValue - minValue);
@@ -44,40 +50,33 @@ const float MAX_DIST = 1000.0;
 
 // Performs sphere tracing for the scene.
 vec3 RayMarch(vec3 cameraOrigin, vec3 cameraDir) {
-
-  vec3 pos;
   float dist = 0.0;
 
   for (int i = 0; i < NUM_STEPS; ++i) {
-    pos = cameraOrigin + dist * cameraDir;
+    vec3 pos = cameraOrigin + dist * cameraDir;
 
     float distToScene = map(pos);
 
-    // Case 1: distToScene < 0, intersected scene
-    // BREAK
     if (distToScene < 0.001) {
-      break;
+      return vec3(1.0);
     }
     dist += distToScene;
 
-    // Case 2: dist > MAX_DIST, out of the scene entirely
-    // RETURN
     if (dist > MAX_DIST) {
       return vec3(0.0);
     }
-
-    // Case 3: Loop around, in reality, do nothing.
   }
 
-  // Finished loop
-  return vec3(1.0);
+  return vec3(0.0);
 }
 
 void main() {
-  vec2 pixelCoords = (vUvs - 0.5) * resolution;
-
-  vec3 rayDir = normalize(vec3(pixelCoords * 2.0 / resolution.y, 1.0));
-  vec3 rayOrigin = vec3(0.0);
+  vec2 screenCoords = (vUvs * 2.0) - 1.0;
+  vec3 rayDir = normalize(
+    cameraForward
+    + cameraRight * screenCoords.x * aspect * tanHalfFov
+    + cameraUp * screenCoords.y * tanHalfFov
+  );
 
   vec3 colour = RayMarch(rayOrigin, rayDir);
 
