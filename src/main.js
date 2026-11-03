@@ -15,7 +15,7 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   100,
 );
-camera.position.set(0, 0, 3);
+camera.position.set(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -24,21 +24,30 @@ document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+controls.target.set(0, 0, 5);
 
 const material = new THREE.ShaderMaterial({
   vertexShader,
   fragmentShader,
   uniforms: {
-    resolution: {
-      value: new THREE.Vector2(window.innerWidth, window.innerHeight),
+    resolution: { value: new THREE.Vector2() },
+    time: { value: 0 },
+    uCameraPosition: { value: new THREE.Vector3() },
+    cameraRight: { value: new THREE.Vector3(1, 0, 0) },
+    cameraUp: { value: new THREE.Vector3(0, 1, 0) },
+    cameraForward: { value: new THREE.Vector3(0, 0, 1) },
+    cameraFov: {
+      value: Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2),
     },
-    time: { value: 0.0 },
   },
 });
+
 const plane = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
 scene.add(plane);
 
 const clock = new THREE.Clock();
+const right = new THREE.Vector3(1, 0, 0);
+const up = new THREE.Vector3(0, 1, 0);
 
 function resize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -52,6 +61,13 @@ resize();
 
 function animate() {
   controls.update();
+  camera.updateMatrixWorld();
+  material.uniforms.uCameraPosition.value.copy(camera.position);
+  material.uniforms.cameraRight.value
+    .copy(right)
+    .applyQuaternion(camera.quaternion);
+  material.uniforms.cameraUp.value.copy(up).applyQuaternion(camera.quaternion);
+  camera.getWorldDirection(material.uniforms.cameraForward.value);
   material.uniforms.time.value = clock.getElapsedTime();
   renderer.render(scene, displayCamera);
 }
