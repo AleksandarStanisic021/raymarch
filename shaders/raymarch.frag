@@ -51,6 +51,12 @@ vec2 map(vec3 pos) {
   return scene;
 }
 
+vec2 mapOpaque(vec3 pos) {
+  vec2 sphere = vec2(sdfSphere(pos - vec3(0.0, 0.0, 5.0), 0.5), 1.0);
+  vec2 torus = vec2(sdTorus(pos - vec3(-1.4, 0.0, 5.0), vec2(0.5, 0.2)), 3.0);
+  return sphere.x < torus.x ? sphere : torus;
+}
+
 vec3 calculateNormal(vec3 pos) {
   const float epsilon = 0.001;
   return normalize(vec3(
@@ -94,6 +100,41 @@ vec3 shadeSurface(vec3 pos, vec3 rayDir, float materialId) {
 const int NUM_STEPS = 256;
 const float MAX_DIST = 1000.0;
 
+vec3 traceOpaque(vec3 rayOrigin, vec3 rayDir) {
+  float dist = 0.0;
+
+  for (int i = 0; i < NUM_STEPS; ++i) {
+    vec3 pos = rayOrigin + dist * rayDir;
+    vec2 scene = mapOpaque(pos);
+
+    if (scene.x < 0.001) {
+      return shadeSurface(pos, rayDir, scene.y);
+    }
+    dist += scene.x;
+    if (dist > MAX_DIST) {
+      break;
+    }
+  }
+
+  return vec3(0.025, 0.035, 0.06);
+}
+
+vec3 shadeGlass(vec3 pos, vec3 rayDir) {
+  vec3 normal = calculateNormal(pos);
+  float fresnel = 0.04 + 0.96 * pow(1.0 - max(dot(-rayDir, normal), 0.0), 5.0);
+  vec3 reflectedDir = reflect(rayDir, normal);
+  vec3 refractedDir = refract(rayDir, normal, 1.0 / 1.5);
+
+  vec3 reflected = traceOpaque(pos + normal * 0.01, reflectedDir);
+  vec3 transmitted = traceOpaque(pos + refractedDir * 0.01, refractedDir);
+  transmitted *= vec3(0.78, 0.94, 1.0);
+  vec3 lightDir = normalize(vec3(-0.5, 0.8, -0.6));
+  vec3 halfDir = normalize(lightDir - rayDir);
+  float highlight = pow(max(dot(normal, halfDir), 0.0), 96.0);
+
+  return mix(transmitted, reflected, fresnel) + vec3(highlight * 0.6);
+}
+
 vec3 RayMarch(vec3 cameraOrigin, vec3 cameraDir) {
   float dist = 0.0;
 
@@ -103,6 +144,9 @@ vec3 RayMarch(vec3 cameraOrigin, vec3 cameraDir) {
     vec2 scene = map(pos);
 
     if (scene.x < 0.001) {
+      if (scene.y > 1.5 && scene.y < 2.5) {
+        return shadeGlass(pos, cameraDir);
+      }
       return shadeSurface(pos, cameraDir, scene.y);
     }
     dist += scene.x;
