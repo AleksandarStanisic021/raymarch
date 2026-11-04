@@ -41,7 +41,11 @@ float sdTorus( vec3 p, vec2 t )
 // Maybe a better name would be calculateSceneSDF().
 float map(vec3 pos) {
   float dist = sdfSphere(pos - vec3(0.0, 0.0, 5.0), 0.5);
-
+  float boxDist = sdfBox(pos - vec3(1.0, 0.0, 5.0), vec3(0.5));
+  float torusDist = sdTorus(pos - vec3(-1.0, 0.0, 5.0), vec2(0.5, 0.2));
+  dist = min(dist, boxDist);
+  dist = min(dist, torusDist);
+  
   return dist;
 }
 
