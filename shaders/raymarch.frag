@@ -39,8 +39,8 @@ float sdTorus( vec3 p, vec2 t )
 
 vec2 map(vec3 pos) {
   vec2 scene = vec2(sdfSphere(pos - vec3(0.0, 0.0, 5.0), 0.5), 1.0);
-  vec2 box = vec2(sdfBox(pos - vec3(1.0, 0.0, 5.0), vec3(0.5)), 2.0);
-  vec2 torus = vec2(sdTorus(pos - vec3(-1.0, 0.0, 5.0), vec2(0.5, 0.2)), 3.0);
+  vec2 box = vec2(sdfBox(pos - vec3(1.4, 0.0, 5.0), vec3(0.5)), 2.0);
+  vec2 torus = vec2(sdTorus(pos - vec3(-1.4, 0.0, 5.0), vec2(0.5, 0.2)), 3.0);
 
   if (box.x < scene.x) {
     scene = box;
