@@ -121,13 +121,13 @@ vec3 traceOpaque(vec3 rayOrigin, vec3 rayDir) {
 
 vec3 shadeGlass(vec3 pos, vec3 rayDir) {
   vec3 normal = calculateNormal(pos);
-  float fresnel = 0.04 + 0.96 * pow(1.0 - max(dot(-rayDir, normal), 0.0), 5.0);
+  float fresnel = 0.12 + 0.88 * pow(1.0 - max(dot(-rayDir, normal), 0.0), 5.0);
   vec3 reflectedDir = reflect(rayDir, normal);
   vec3 refractedDir = refract(rayDir, normal, 1.0 / 1.5);
 
   vec3 reflected = traceOpaque(pos + normal * 0.01, reflectedDir);
   vec3 transmitted = traceOpaque(pos + refractedDir * 0.01, refractedDir);
-  transmitted *= vec3(0.78, 0.94, 1.0);
+  transmitted *= vec3(0.38, 0.62, 0.78);
   vec3 lightDir = normalize(vec3(-0.5, 0.8, -0.6));
   vec3 halfDir = normalize(lightDir - rayDir);
   float highlight = pow(max(dot(normal, halfDir), 0.0), 96.0);
